@@ -18,11 +18,16 @@
 package com.github.ehiggs.spark.terasort
 
 import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark._
+import org.apache.spark.storage._
+import java.util.Timer
+import org.apache.spark.util
+import java.lang.System;
 
 object TeraGen {
   def main(args: Array[String]) {
 
-    if (args.length < 2) {
+    if (args.length < 3) {
       println("Usage:")
       println("DRIVER_MEMORY=[mem] spark-submit " +
         "com.github.ehiggs.spark.terasort.TeraGen " +
@@ -33,14 +38,14 @@ object TeraGen {
       println("DRIVER_MEMORY=50g spark-submit " +
         "com.github.ehiggs.spark.terasort.TeraGen " +
         "spark-terasort-1.0-SNAPSHOT-with-dependencies.jar " +
-        "100G file:///scratch/username/terasort_in")
+        "100G file:///scratch/username/terasort_ini timeout")
       System.exit(0)
     }
 
     // Process command line arguments
     val outputSizeInBytes = sizeStrToBytes(args(0))
     val outputFile = args(1)
-
+    val timeout = args(2).toInt // mania
     val size = sizeToSizeStr(outputSizeInBytes)
 
     val conf = new SparkConf()
@@ -51,6 +56,24 @@ object TeraGen {
     val recordsPerPartition = outputSizeInBytes / 100 / parts.toLong
     val numRecords = recordsPerPartition * parts.toLong
 
+    val batchIntervalSeconds = 1 
+
+    // mania
+    val t = new java.util.Timer()
+    val task = new java.util.TimerTask {
+        def run() {
+            println("YYYOOOOOOOOOOOOOO")
+            //sc.session.stop();
+       
+            this.cancel()
+            sc.cancelAllJobs()
+            sc.stop()
+            System.exit(0)
+        }   
+    } 
+    t.schedule(task, timeout*1000, timeout*1000)
+
+    println(s"timeout: $timeout")
     println("===========================================================================")
     println("===========================================================================")
     println(s"Input size: $size")
@@ -62,6 +85,7 @@ object TeraGen {
 
     assert(recordsPerPartition < Int.MaxValue, s"records per partition > ${Int.MaxValue}")
 
+    /*ssc.awaitTerminationOrTimeout(batchIntervalSeconds * 10)*/
 
     val dataset = sc.parallelize(1 to parts, parts).mapPartitionsWithIndex { case (index, _) =>
       val one = new Unsigned16(1)
