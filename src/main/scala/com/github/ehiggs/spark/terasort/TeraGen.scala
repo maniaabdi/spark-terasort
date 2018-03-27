@@ -87,6 +87,7 @@ object TeraGen {
 
     /*ssc.awaitTerminationOrTimeout(batchIntervalSeconds * 10)*/
 
+    while (true) {
     val dataset = sc.parallelize(1 to parts, parts).mapPartitionsWithIndex { case (index, _) =>
       val one = new Unsigned16(1)
       val firstRecordNumber = new Unsigned16(index.toLong * recordsPerPartition.toLong)
@@ -116,6 +117,7 @@ object TeraGen {
     dataset.saveAsNewAPIHadoopFile[TeraOutputFormat](outputFile)
 
     println("Number of records written: " + dataset.count())
+  }
   }
 
   def sizeStrToBytes(str: String): Long = {

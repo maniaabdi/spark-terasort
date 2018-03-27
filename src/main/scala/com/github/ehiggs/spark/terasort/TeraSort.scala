@@ -20,6 +20,9 @@ package com.github.ehiggs.spark.terasort
 import java.util.Comparator
 import com.google.common.primitives.UnsignedBytes
 import org.apache.spark.{SparkConf, SparkContext}
+import java.util.Timer
+import org.apache.spark.util
+import java.lang.System;
 
 /**
  * This is a great example program to stress test Spark's shuffle mechanism.
@@ -33,7 +36,7 @@ object TeraSort {
 
   def main(args: Array[String]) {
 
-    if (args.length < 2) {
+    if (args.length < 3) {
       println("Usage:")
       println("DRIVER_MEMORY=[mem] spark-submit " +
         "com.github.ehiggs.spark.terasort.TeraSort " +
@@ -51,17 +54,35 @@ object TeraSort {
     // Process command line arguments
     val inputFile = args(0)
     val outputFile = args(1)
+    val timeout = args(2).toInt // mania
+
 
     val conf = new SparkConf()
       .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
       .setAppName(s"TeraSort")
     val sc = new SparkContext(conf)
 
+    // mania
+    val t = new java.util.Timer()
+    val task = new java.util.TimerTask {
+        def run() {
+            println("YYYOOOOOOOOOOOOOO")
+            //sc.session.stop();
+
+            this.cancel()
+            sc.cancelAllJobs()
+            sc.stop()
+            System.exit(0)
+        }
+    } 
+    t.schedule(task, timeout*1000, timeout*1000)
+
+    while(true) { // mania
     val dataset = sc.newAPIHadoopFile[Array[Byte], Array[Byte], TeraInputFormat](inputFile)
     val sorted = dataset.repartitionAndSortWithinPartitions(
       new TeraSortPartitioner(dataset.partitions.length))
     sorted.saveAsNewAPIHadoopFile[TeraOutputFormat](outputFile)
-    
+    }
     System.exit(0) //explicitly exiting
   }
 }
